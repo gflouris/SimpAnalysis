@@ -12,5 +12,9 @@ tree = cms.EDAnalyzer(
     vertexCollection = cms.InputTag("offlinePrimaryVertices"),
     METCollection    = cms.InputTag("pfMet"),
     photonCollection    = cms.InputTag("gedPhotons"),
-    trackCollection    = cms.InputTag("generalTracks", "", "RECO")    
+    trackCollection    = cms.InputTag("generalTracks", "", "RECO"),
+    partons    = cms.InputTag("genParticles","","HLT"),
+    pfRho    = cms.InputTag("fixedGridRhoFastjetCentral","","RECO")
+
+
 )

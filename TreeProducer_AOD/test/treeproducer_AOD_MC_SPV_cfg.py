@@ -85,13 +85,13 @@ process.load("SimpAnalysis.TreeProducer_AOD.Treeproducer_AOD_cfi")
 process.treeSPV = process.tree.clone()
 process.treeSPV.pfjetCollection = cms.InputTag("ak4SPVPFCHSJetsCorr")
 #############################
-
-process.treeSPV.pfjetCollection  = cms.InputTag("ak4PFCHSJetsSPV")
+process.treeCorr = process.tree.clone()
+process.treeCorr.pfjetCollection  = cms.InputTag("ak4PFCHSJetsCorr")
 
 
 process.p = cms.Path(process.ak4PFCHSL1FastL2L3ResidualCorrectorChain
 		    +process.ak4PFCHSJetsCorr
-		    +process.tree
+		    +process.treeCorr
                     +process.pfchsSecondPV
                     +process.SPVgoodOfflinePrimaryVertices
                     +process.pfPileUpSPV

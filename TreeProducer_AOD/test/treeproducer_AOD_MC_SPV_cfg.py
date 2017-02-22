@@ -84,6 +84,7 @@ process.ak4SPVPFCHSJetsCorr.src = cms.InputTag('ak4PFCHSJetsSPV')
 process.load("SimpAnalysis.TreeProducer_AOD.Treeproducer_AOD_cfi")
 process.treeSPV = process.tree.clone()
 process.treeSPV.pfjetCollection = cms.InputTag("ak4SPVPFCHSJetsCorr")
+process.treeSPV.vertexCollection = cms.InputTag("SPVgoodOfflinePrimaryVertices")
 #############################
 process.treeCorr = process.tree.clone()
 process.treeCorr.pfjetCollection  = cms.InputTag("ak4PFCHSJetsCorr")

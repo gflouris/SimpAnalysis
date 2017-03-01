@@ -98,8 +98,8 @@ void P2PFProducerNeutrons::produce(edm::Event& e, const edm::EventSetup& c) {
          double xrnd = rnd->Gaus(1,sig);
 
          //cout<<thepartons->pt()<<"\t"<<thepartons->eta()<<"\t"<<thepartons->phi()<<"\t"<<sig<<"\t"<<xrnd<<endl;
-         //tmpPfCand.SetPxPyPzE(thepartons->px()* xrnd,thepartons->py()* xrnd,thepartons->pz()* xrnd,thepartons->energy()); //neutron gun
-         tmpPfCand.SetPxPyPzE(thepartons->px(),thepartons->py(),thepartons->pz(),thepartons->energy()); //neutron gun
+         tmpPfCand.SetPxPyPzE(thepartons->px()* xrnd,thepartons->py()* xrnd,thepartons->pz()* xrnd,thepartons->energy()*xrnd); //neutron gun
+         //tmpPfCand.SetPxPyPzE(thepartons->px(),thepartons->py(),thepartons->pz(),thepartons->energy()); //neutron gun
 
 
 	       out_particlepf->push_back(reco::PFCandidate(0,tmpPfCand,reco::PFCandidate::ParticleType::h0));

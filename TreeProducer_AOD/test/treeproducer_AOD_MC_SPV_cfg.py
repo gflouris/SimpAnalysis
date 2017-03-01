@@ -72,6 +72,7 @@ process.ak4PFCHSJetsSPV = ak4PFJets.clone(
 process.load("SimpAnalysis.TreeProducer_AOD.Treeproducer_AOD_cfi")
 process.treeSPV = process.tree.clone()
 process.treeSPV.pfjetCollection = cms.InputTag("ak4PFCHSJetsSPV")
+process.treeSPV.pfRho = cms.InputTag("fixedGridRhoFastjetAll")
 process.treeSPV.vertexCollection = cms.InputTag("SPVgoodOfflinePrimaryVertices")
 process.treeSPV.isData = cms.untracked.bool(False)
 

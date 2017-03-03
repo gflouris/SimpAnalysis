@@ -55,11 +55,8 @@ void PFCHS_SecondPV::produce(edm::Event& e, const edm::EventSetup& c) {
 
 
 
-//  int itr = 0;
     for (vector<reco::Vertex>::const_iterator thevtx = H_vertices->begin();
     thevtx != H_vertices->end(); ++thevtx){ 
-//      itr++;
-//      if(itr==1) continue;
       out_vertices->push_back(*thevtx);
     }
 

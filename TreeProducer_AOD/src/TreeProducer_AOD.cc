@@ -35,9 +35,10 @@ TreeProducer_AOD::TreeProducer_AOD(const edm::ParameterSet& pset):
   phoMediumIdMapToken_(consumes<edm::ValueMap<bool> >(_phoMediumIdMapTag)),
 	phoTightIdMapToken_(consumes<edm::ValueMap<bool> >(_phoTightIdMapTag)),
  _pfRhoToken(consumes<double >(_srcPFRhoTag)),
-  _isData(pset.getUntrackedParameter<bool>("isData"))
+  _isData(pset.getUntrackedParameter<bool>("isData")),
+  hltPrescale_(pset, consumesCollector(), *this)
 {
-
+ triggerNames_ = pset.getParameter<std::vector<std::string> > ("triggerName");
 }
 
 
@@ -104,9 +105,9 @@ TreeProducer_AOD::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
   edm::Handle<edm::ValueMap<bool> > loose_id_decisions;
   edm::Handle<edm::ValueMap<bool> > medium_id_decisions;
   edm::Handle<edm::ValueMap<bool> > tight_id_decisions;
-  iEvent.getByToken(phoLooseIdMapToken_ ,loose_id_decisions);
-  iEvent.getByToken(phoMediumIdMapToken_,medium_id_decisions);
-  iEvent.getByToken(phoTightIdMapToken_ ,tight_id_decisions);
+  //iEvent.getByToken(phoLooseIdMapToken_ ,loose_id_decisions);
+  //iEvent.getByToken(phoMediumIdMapToken_,medium_id_decisions);
+  //iEvent.getByToken(phoTightIdMapToken_ ,tight_id_decisions);
 
 
   edm::Handle<double> H_rho;
@@ -356,9 +357,9 @@ TreeProducer_AOD::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
 		_photon_pt[iP] = thePhoton->pt();
 		_photon_eta[iP] = thePhoton->eta();
 		_photon_phi[iP] = thePhoton->phi();
-		bool isPassLoose  = (*loose_id_decisions)[thePhoton];
-    bool isPassMedium = (*medium_id_decisions)[thePhoton];
-    bool isPassTight  = (*tight_id_decisions)[thePhoton];
+		bool isPassLoose  = true;//(*loose_id_decisions)[thePhoton];
+    bool isPassMedium = true;//(*medium_id_decisions)[thePhoton];
+    bool isPassTight  = true;//(*tight_id_decisions)[thePhoton];
     _passLooseId[iP] = ( (int)isPassLoose );
     _passMediumId[iP] = ( (int)isPassMedium);
 		_passTightId[iP] = ( (int)isPassTight );
@@ -381,6 +382,38 @@ TreeProducer_AOD::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
 // 			if (trignames.triggerName(i).find("HLT_SingleCentralPFJet170_CFMax0p1_v") != string::npos) _pswgt_singlejet_170_0p1 = H_prescale->getPrescaleForIndex(i);
 // 	}
 
+
+// sanity check
+assert(H_trig->size() == hltConfig_.size());
+//------ loop over all trigger names ---------
+for(unsigned itrig=0;itrig<triggerNames_.size() ;itrig++) {
+  int preL1(-1);
+  int preHLT(-1);
+
+  if (triggerIndex_[itrig] < hltConfig_.size()) {
+    ///In detail get prescale info from hltConfig_
+    std::pair<std::vector<std::pair<std::string,int> >,int> detailedPrescaleInfo = hltPrescale_.prescaleValuesInDetail(iEvent, iSetup, triggerNames_[itrig]);
+    preHLT = detailedPrescaleInfo.second ;
+
+    // save l1 prescale values in standalone vector
+    std::vector <int> l1prescalevals;
+    for( size_t varind = 0; varind < detailedPrescaleInfo.first.size(); varind++ ){
+      l1prescalevals.push_back(detailedPrescaleInfo.first.at(varind).second);
+    }
+
+    //find and save minimum l1 prescale of any ORed L1 that seeds the HLT
+    std::vector<int>::iterator result = std::min_element(std::begin(l1prescalevals), std::end(l1prescalevals));
+    size_t minind = std::distance(std::begin(l1prescalevals), result);
+    // sometimes there are no L1s associated with a HLT. In that case, this branch stores -1 for the l1prescale
+    preL1 = minind < l1prescalevals.size() ? l1prescalevals.at(minind) : -1 ;//commented for 76X
+
+    //prescales
+    if(triggerNames_[itrig].find("HLT_DiCentralPFJet170_v") != std::string::npos)   _pswgt_dijet_170 = preL1 * preHLT;
+    if(triggerNames_[itrig].find("HLT_SingleCentralPFJet170_CFMax0p1_v") != std::string::npos)   _pswgt_singlejet_170_0p1 = preL1 * preHLT;
+
+  }
+  }
+
   //MET filters//
   if (filterPathsMap[filterPathsVector[0]] != -1 && H_METfilter->accept(filterPathsMap[filterPathsVector[0]])) _HBHENoiseFlag = 1;
   if (filterPathsMap[filterPathsVector[1]] != -1 && H_METfilter->accept(filterPathsMap[filterPathsVector[1]])) _HBHENoiseIsoFlag = 1;
@@ -390,6 +423,8 @@ TreeProducer_AOD::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
   if (filterPathsMap[filterPathsVector[5]] != -1 && H_METfilter->accept(filterPathsMap[filterPathsVector[5]])) _beamhaloFlag = 1;
 
   _tree->Fill();
+  delete jecUnc;
+  delete jecCorrector;
 }
 
 
@@ -540,9 +575,8 @@ TreeProducer_AOD::beginRun(edm::Run const& iRun, edm::EventSetup const& iSetup)
   triggerPathsVector.push_back("HLT_DiCentralPFJet170_v");
   triggerPathsVector.push_back("HLT_SingleCentralPFJet170_CFMax0p1_v");
 
-  HLTConfigProvider hltConfig;
   bool changedConfig = false;
-  hltConfig.init(iRun, iSetup, _trigResultsTag.process(), changedConfig);
+  hltConfig_.init(iRun, iSetup, _trigResultsTag.process(), changedConfig);
 
   for (size_t i = 0; i < triggerPathsVector.size(); i++) {
     triggerPathsMap[triggerPathsVector[i]] = -1;
@@ -550,8 +584,8 @@ TreeProducer_AOD::beginRun(edm::Run const& iRun, edm::EventSetup const& iSetup)
 
   for(size_t i = 0; i < triggerPathsVector.size(); i++){
     TPRegexp pattern(triggerPathsVector[i]);
-    for(size_t j = 0; j < hltConfig.triggerNames().size(); j++){
-      std::string pathName = hltConfig.triggerNames()[j];
+    for(size_t j = 0; j < hltConfig_.triggerNames().size(); j++){
+      std::string pathName = hltConfig_.triggerNames()[j];
       if(TString(pathName).Contains(pattern)){
         triggerPathsMap[triggerPathsVector[i]] = j;
       }
@@ -582,6 +616,34 @@ TreeProducer_AOD::beginRun(edm::Run const& iRun, edm::EventSetup const& iSetup)
       }
     }
   }
+
+
+  bool changed(true);
+  if (hltConfig_.init(iRun,iSetup,"HLT",changed) && hltPrescale_.init(iRun, iSetup, "HLT", changed) ) {
+    if (changed) {
+      // check if trigger names in (new) config
+      cout<<"New trigger menu found !!!"<<endl;
+      triggerIndex_.clear();
+      const unsigned int n(hltConfig_.size());
+      for(unsigned itrig=0;itrig<triggerNames_.size();itrig++) {
+        triggerIndex_.push_back(hltConfig_.triggerIndex(triggerNames_[itrig]));
+        cout<<triggerNames_[itrig]<<" "<<triggerIndex_[itrig]<<" ";
+        if (triggerIndex_[itrig] >= n)
+          cout<<"does not exist in the current menu"<<endl;
+        else
+          cout<<"exists"<<endl;
+      }
+      cout << "Available TriggerNames are: " << endl;
+      if (true)
+        hltConfig_.dump("Triggers");
+    }
+  }
+  else {
+    cout << "ProcessedTreeProducerBTag::analyze:"
+         << " config extraction failure with process name "
+         << "HLT" << endl;
+}
+
 }
 
 // ------------ method called when ending the processing of a run  ------------

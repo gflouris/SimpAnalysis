@@ -16,6 +16,7 @@ tree = cms.EDAnalyzer(
     isData = cms.untracked.bool(True),
     phoLooseIdMap = cms.InputTag("egmPhotonIDs:cutBasedPhotonID-Spring16-V2p2-loose"),
     phoMediumIdMap = cms.InputTag("egmPhotonIDs:cutBasedPhotonID-Spring16-V2p2-medium"),
-    phoTightIdMap = cms.InputTag("egmPhotonIDs:cutBasedPhotonID-Spring16-V2p2-tight"),   
-    pfRho = cms.InputTag("fixedGridRhoFastjetAll")
+    phoTightIdMap = cms.InputTag("egmPhotonIDs:cutBasedPhotonID-Spring16-V2p2-tight"),
+    pfRho = cms.InputTag("fixedGridRhoFastjetAll"),
+    triggerName = cms.vstring('HLT_DiCentralPFJet170_v1')
 )

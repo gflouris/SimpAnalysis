@@ -53,6 +53,9 @@
 #include "CondFormats/JetMETObjects/interface/FactorizedJetCorrector.h"
 #include "CondFormats/JetMETObjects/interface/JetCorrectorParameters.h"
 #include "CondFormats/JetMETObjects/interface/JetCorrectionUncertainty.h"
+
+#include "HLTrigger/HLTcore/interface/HLTConfigProvider.h"
+#include "HLTrigger/HLTcore/interface/HLTPrescaleProvider.h"
 // others
 using namespace std;
 int verbose=1;
@@ -120,6 +123,8 @@ class TreeProducer_AOD : public edm::one::EDAnalyzer<edm::one::SharedResources,e
 	edm::EDGetTokenT<edm::ValueMap<bool> > phoTightIdMapToken_;
   edm::EDGetTokenT<double> _pfRhoToken;
 
+ std::vector<std::string> triggerNames_;
+  std::vector<unsigned int> triggerIndex_;
 	bool _isData;
 
 //   GlobalPoint vertexPosition;
@@ -177,6 +182,12 @@ class TreeProducer_AOD : public edm::one::EDAnalyzer<edm::one::SharedResources,e
 
   //PFRho
 double _pfrho;
+
+
+HLTConfigProvider hltConfig_;
+ HLTPrescaleProvider hltPrescale_;
+
+
 };
 
 namespace reco {

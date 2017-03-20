@@ -1,6 +1,7 @@
-<library   file="*.cc" name="SimpAnalysisPFCHS_SecondPV">
+<library   file="*.cc" name="SimpAnalysisP2PFPlugins">
 <use name="FWCore/ServiceRegistry"/>
 <use name="CondFormats/DataRecord"/>
+<use name="SimpAnalysis/P2PF"/>
 <use name="DataFormats/HepMCCandidate"/>
 <use name="DataFormats/ParticleFlowCandidate"/>
 <use name="DataFormats/JetReco"/>

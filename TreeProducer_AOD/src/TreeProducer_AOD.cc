@@ -19,6 +19,8 @@ TreeProducer_AOD::TreeProducer_AOD(const edm::ParameterSet& pset):
   _phoMediumIdMapTag(pset.getParameter<edm::InputTag>("phoMediumIdMap")),
   _phoTightIdMapTag(pset.getParameter<edm::InputTag>("phoTightIdMap")),
  _srcPFRhoTag(pset.getParameter<edm::InputTag>("pfRho")),
+ _tagBS(pset.getParameter<edm::InputTag>("BeamSpot")),
+ _tagCONV(pset.getParameter<edm::InputTag>("Conversions")),
 
   _trigResultsToken(consumes<edm::TriggerResults>(_trigResultsTag)),
 //   _trigResultsToken2(consumes<edm::TriggerResults>(_trigResultsTag2)),
@@ -36,9 +38,15 @@ TreeProducer_AOD::TreeProducer_AOD(const edm::ParameterSet& pset):
 	phoTightIdMapToken_(consumes<edm::ValueMap<bool> >(_phoTightIdMapTag)),
  _pfRhoToken(consumes<double >(_srcPFRhoTag)),
   _isData(pset.getUntrackedParameter<bool>("isData")),
-  hltPrescale_(pset, consumesCollector(), *this)
+  hltPrescale_(pset, consumesCollector(), *this),
+  tokenCOV(consumes<reco::ConversionCollection>(_tagCONV)),
+  tokenBS(consumes<reco::BeamSpot>(_tagBS))
+
+
 {
  triggerNames_ = pset.getParameter<std::vector<std::string> > ("triggerName");
+
+
 }
 
 
@@ -105,9 +113,9 @@ TreeProducer_AOD::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
   edm::Handle<edm::ValueMap<bool> > loose_id_decisions;
   edm::Handle<edm::ValueMap<bool> > medium_id_decisions;
   edm::Handle<edm::ValueMap<bool> > tight_id_decisions;
-  //iEvent.getByToken(phoLooseIdMapToken_ ,loose_id_decisions);
-  //iEvent.getByToken(phoMediumIdMapToken_,medium_id_decisions);
-  //iEvent.getByToken(phoTightIdMapToken_ ,tight_id_decisions);
+  iEvent.getByToken(phoLooseIdMapToken_ ,loose_id_decisions);
+  iEvent.getByToken(phoMediumIdMapToken_,medium_id_decisions);
+  iEvent.getByToken(phoTightIdMapToken_ ,tight_id_decisions);
 
 
   edm::Handle<double> H_rho;
@@ -255,6 +263,7 @@ TreeProducer_AOD::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
     spec.mHFEMEnergy *= corFactor;
 
     reco::PFJet tmpJet(correctedP4, theJet->vertex(), spec, theJet->getJetConstituents());
+    tmpJet.setJetArea(theJet->jetArea());
     corrected_PFJet.push_back( tmpJet );
 
   }
@@ -289,7 +298,7 @@ TreeProducer_AOD::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
 			_jet_efrac_ch_Had[iJ] = theJet->chargedHadronEnergyFraction();
 			_jet_efrac_ch_EM[ iJ] = theJet->chargedEmEnergyFraction();
 			_jet_efrac_ch_Mu[ iJ] = theJet->chargedMuEnergyFraction();
-
+      _jet_efrac_photon[iJ] = theJet->photonEnergyFraction();
 			// Multiplicities
 			_jet_mult_ch[iJ] = theJet->chargedMultiplicity();
 			_jet_mult_mu[iJ] = theJet->muonMultiplicity();
@@ -350,6 +359,24 @@ TreeProducer_AOD::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
   _MET_phi = met.phi();
 
 	// PHOTONS//
+  edm::Handle<reco::ConversionCollection> hConversions;
+   edm::Handle<reco::BeamSpot> bsHandle;
+
+  //iEvent.getByToken(tokenBS, bsHandle);
+  //const reco::BeamSpot &beamspot = *bsHandle.product();
+
+  iEvent.getByToken(tokenCOV, hConversions);
+
+  // for (reco::ConversionCollection::const_iterator conv = hConversions->begin(); conv!= hConversions->end(); ++conv) {
+  //   math::XYZVectorF rpm = conv->pairMomentum();
+  //   double pt = 0;
+  //   std::vector<edm::RefToBase<reco::Track> > reftrack = conv->tracks();
+  //   for(unsigned int tr=0; tr<reftrack.size(); tr++){
+  //     pt+=reftrack[tr]->pt();
+  //   }
+  // }
+
+
 	UInt_t iP=0;
 // 	for (vector<reco::Photon>::const_iterator thePhoton = H_photon->begin(); thePhoton != H_photon->end(); ++thePhoton){
   for (size_t i = 0; i < H_photon->size(); ++i){
@@ -357,12 +384,45 @@ TreeProducer_AOD::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
 		_photon_pt[iP] = thePhoton->pt();
 		_photon_eta[iP] = thePhoton->eta();
 		_photon_phi[iP] = thePhoton->phi();
-		bool isPassLoose  = true;//(*loose_id_decisions)[thePhoton];
-    bool isPassMedium = true;//(*medium_id_decisions)[thePhoton];
-    bool isPassTight  = true;//(*tight_id_decisions)[thePhoton];
+		bool isPassLoose  = (*loose_id_decisions)[thePhoton];
+    bool isPassMedium = (*medium_id_decisions)[thePhoton];
+    bool isPassTight  = (*tight_id_decisions)[thePhoton];
     _passLooseId[iP] = ( (int)isPassLoose );
     _passMediumId[iP] = ( (int)isPassMedium);
 		_passTightId[iP] = ( (int)isPassTight );
+
+    //reco::PhotonCoreRef photonCore = thePhoton->photonCore();
+    //reco::ConversionRefVector photoConv = thePhoton->conversions();
+    //const reco::SuperCluster& sc = *(thePhoton->superCluster());
+    //if(convref.isNull()) cout<<"Photon not matched to conversions  "<<thePhoton->pt()<<"\t"<<thePhoton->eta()<<endl;
+    //else cout<<"Photon matched to conversions  "<<thePhoton->pt()<<"\t"<<thePhoton->eta()<<endl;
+
+    bool matched = false;
+    double total_convs_pt = 0;
+    for (reco::ConversionCollection::const_iterator conv = hConversions->begin(); conv!= hConversions->end(); ++conv) {
+      if(conv->EoverP()>2.5 or conv->EoverP()<0.5) continue;
+      math::XYZVectorF rpm = conv->pairMomentum();
+      double pt = 0;
+      std::vector<edm::RefToBase<reco::Track> > reftrack = conv->tracks();
+      for(unsigned int tr=0; tr<reftrack.size(); tr++){
+        pt+=reftrack[tr]->pt();
+      }
+      if(deltaR(thePhoton->eta(), thePhoton->phi(), rpm.eta(), rpm.phi()) < 0.2) {
+        matched = true;
+        total_convs_pt += pt;
+      }
+    }
+
+    if(matched) {
+      pc_matched[iP] = 1;
+      convtracks_pt[iP] = total_convs_pt;
+    }
+    else{
+      pc_matched[iP] = 0;
+      convtracks_pt[iP] = 0;
+    }
+
+
 		iP++;
 		if (iP>=nP) break;
 	}
@@ -500,6 +560,7 @@ TreeProducer_AOD::beginJob()
   _tree->Branch("jet_efrac_ch_Had", &_jet_efrac_ch_Had, "jet_efrac_ch_Had[nJet_stored]/D");
   _tree->Branch("jet_efrac_ch_EM",  &_jet_efrac_ch_EM,  "jet_efrac_ch_EM[nJet_stored]/D" );
   _tree->Branch("jet_efrac_ch_Mu",  &_jet_efrac_ch_Mu,  "jet_efrac_ch_Mu[nJet_stored]/D" );
+  _tree->Branch("jet_efrac_photon",  &_jet_efrac_photon,  "jet_efrac_photon[nJet_stored]/D" );
   _tree->Branch("jet_unc",&_jet_unc,"jet_unc[nJet_stored]/D");
   _tree->Branch("_jet_ptCor_up",&_jet_ptCor_up,"_jet_ptCor_up[nJet_stored]/D");
   _tree->Branch("_jet_ptCor_down",&_jet_ptCor_down,"_jet_ptCor_down[nJet_stored]/D");
@@ -530,6 +591,10 @@ TreeProducer_AOD::beginJob()
   _tree->Branch("photon_passLooseId",&_passLooseId, "photon_passLooseId[nPhoton_stored]/I");
   _tree->Branch("photon_passMediumId",&_passMediumId, "photon_passLooseId[nPhoton_stored]/I");
   _tree->Branch("photon_passTightId",&_passTightId, "photon_passLooseId[nPhoton_stored]/I");
+
+  _tree->Branch("pc_matched",&pc_matched,"pc_matched[nPhoton_stored]/I");
+  _tree->Branch("convtracks_pt",&convtracks_pt,"convtracks_pt[nPhoton_stored]/D");
+
 
   //MET
   _tree->Branch("MET", &_MET, "MET/D");
@@ -786,6 +851,8 @@ TreeProducer_AOD::Init()
 		_passLooseId[i] = 0;
 		_passMediumId[i] = 0;
 		_passTightId[i] = 0;
+    pc_matched[i] = 0;
+    convtracks_pt[i] = 0;
 	}
 }
 

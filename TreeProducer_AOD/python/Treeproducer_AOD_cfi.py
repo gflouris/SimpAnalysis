@@ -18,5 +18,7 @@ tree = cms.EDAnalyzer(
     phoMediumIdMap = cms.InputTag("egmPhotonIDs:cutBasedPhotonID-Spring16-V2p2-medium"),
     phoTightIdMap = cms.InputTag("egmPhotonIDs:cutBasedPhotonID-Spring16-V2p2-tight"),
     pfRho = cms.InputTag("fixedGridRhoFastjetAll"),
-    triggerName = cms.vstring('HLT_DiCentralPFJet170_v1')
+    triggerName = cms.vstring('HLT_DiCentralPFJet170_v1'),
+    BeamSpot = cms.InputTag("offlineBeamSpot"),
+    Conversions = cms.InputTag("conversions")
 )

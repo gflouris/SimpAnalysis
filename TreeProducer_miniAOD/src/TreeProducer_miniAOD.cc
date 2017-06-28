@@ -18,7 +18,9 @@ TreeProducer_miniAOD::TreeProducer_miniAOD(const edm::ParameterSet& pset):
   _phoLooseIdMapTag(pset.getParameter<edm::InputTag>("phoLooseIdMap")),
   _phoMediumIdMapTag(pset.getParameter<edm::InputTag>("phoMediumIdMap")),
   _phoTightIdMapTag(pset.getParameter<edm::InputTag>("phoTightIdMap")),
-	
+  //_tagCONV(pset.getParameter<edm::InputTag>("Conversions")),
+
+
   trigResultsToken_(consumes<edm::TriggerResults>(_trigResultsTag)),
 //   _trigResultsToken2_(consumes<edm::TriggerResults>(_trigResultsTag2)),
   triggerPrescalesToken_(consumes<pat::PackedTriggerPrescales>(_prescalesTag)),
@@ -33,7 +35,8 @@ TreeProducer_miniAOD::TreeProducer_miniAOD(const edm::ParameterSet& pset):
   phoLooseIdMapToken_(consumes<edm::ValueMap<bool> >(_phoLooseIdMapTag)),
   phoMediumIdMapToken_(consumes<edm::ValueMap<bool> >(_phoMediumIdMapTag)),
 	phoTightIdMapToken_(consumes<edm::ValueMap<bool> >(_phoTightIdMapTag)),
-  
+  //tokenCOV(consumes<reco::ConversionCollection>(_tagCONV)),
+
   _isData(pset.getUntrackedParameter<bool>("isData"))
 {
 
@@ -62,7 +65,7 @@ TreeProducer_miniAOD::analyze(const edm::Event& iEvent, edm::EventSetup const& i
   // Get collections
   edm::Handle<edm::TriggerResults> H_METfilter;
 	iEvent.getByToken(METfilterToken_, H_METfilter);
-  
+
   edm::Handle<edm::TriggerResults> H_trig;//, H_trig1, H_trig2;
 // 	try {iEvent.getByToken(_trigResultsToken, H_trig1);} catch (...) {;}
 // 	try {iEvent.getByToken(_trigResultsToken2, H_trig2);} catch (...) {;}
@@ -75,7 +78,7 @@ TreeProducer_miniAOD::analyze(const edm::Event& iEvent, edm::EventSetup const& i
 // 		_trigResultsTag = _trigResultsTag2;
 // 	}
 	iEvent.getByToken(trigResultsToken_, H_trig);
-  
+
   edm::Handle<pat::PackedTriggerPrescales> H_prescale, H_prescale1, H_prescale2;
   try {iEvent.getByToken(triggerPrescalesToken_, H_prescale1);} catch (...) {;}
   try {iEvent.getByToken(triggerPrescalesToken2_, H_prescale2);} catch (...) {;}
@@ -87,29 +90,32 @@ TreeProducer_miniAOD::analyze(const edm::Event& iEvent, edm::EventSetup const& i
 
   edm::Handle<vector<pat::Jet> > H_pfjets;
   iEvent.getByToken(pfjetCollectionToken_ , H_pfjets);
-	
+
 	edm::Handle<vector<reco::GenJet> > H_genjets;
 	if (!_isData) iEvent.getByToken(genjetCollectionToken_ , H_genjets);
-  
+
   edm::Handle<vector<pat::MET> > H_MET;
   iEvent.getByToken(METCollectionToken_ , H_MET);
-  
+
   edm::Handle<edm::View<reco::Photon> > H_photon;
   iEvent.getByToken(photonCollectionToken_ , H_photon);
-	
+
   edm::Handle<vector<pat::PackedCandidate> > H_packedPF;
   iEvent.getByToken(packedPFCollectionToken_ , H_packedPF);
-	
-	
+
+  //edm::Handle<reco::ConversionCollection> hConversions;
+  //iEvent.getByToken(tokenCOV, hConversions);
+
+
   edm::Handle<edm::ValueMap<bool> > loose_id_decisions;
   edm::Handle<edm::ValueMap<bool> > medium_id_decisions;
   edm::Handle<edm::ValueMap<bool> > tight_id_decisions;
   iEvent.getByToken(phoLooseIdMapToken_ ,loose_id_decisions);
   iEvent.getByToken(phoMediumIdMapToken_,medium_id_decisions);
   iEvent.getByToken(phoTightIdMapToken_ ,tight_id_decisions);
-  
+
   edm::ESHandle<JetCorrectorParametersCollection> JetCorParColl;
-  iSetup.get<JetCorrectionsRecord>().get("AK4PFchs",JetCorParColl); 
+  iSetup.get<JetCorrectionsRecord>().get("AK4PFchs",JetCorParColl);
   JetCorrectorParameters const & JetCorPar = (*JetCorParColl)["Uncertainty"];
   JetCorrectionUncertainty *jecUnc = new JetCorrectionUncertainty(JetCorPar);
 
@@ -123,7 +129,7 @@ TreeProducer_miniAOD::analyze(const edm::Event& iEvent, edm::EventSetup const& i
     if(verbose>0) cout << "Missing collection : " << _pfjetCollectionTag << " ... skip entry !" << endl;
     return;
   }
-  
+
   if(!H_vert.isValid()) {
     if(verbose>0) cout << "Missing collection : " << _vertexCollectionTag << " ... skip entry !" << endl;
     return;
@@ -138,8 +144,8 @@ TreeProducer_miniAOD::analyze(const edm::Event& iEvent, edm::EventSetup const& i
   UInt_t vtx_counter=0;
   _vtx_N = H_vert->size();
   _vtx_N_stored = nV;
-	
-  // select the primary vertex as the one with higest sum of (pt)^2 of tracks                                                                               
+
+  // select the primary vertex as the one with higest sum of (pt)^2 of tracks
   PrimaryVertexSorter PVSorter;
   std::vector<reco::Vertex> sortedVertices = PVSorter.sortedList( *(H_vert.product()) );
 
@@ -152,7 +158,7 @@ TreeProducer_miniAOD::analyze(const edm::Event& iEvent, edm::EventSetup const& i
     _vtx_x[vtx_counter] = PV->x();
     _vtx_y[vtx_counter] = PV->y();
     _vtx_z[vtx_counter] = PV->z();
-		
+
     vtx_counter++;
     if(vtx_counter >= nV) break;
   } // for loop on primary vertices
@@ -165,10 +171,10 @@ TreeProducer_miniAOD::analyze(const edm::Event& iEvent, edm::EventSetup const& i
 			trackRef.push_back(ref);
 		}
 	}
-	
+
 	pat::PatPtSorter<pat::PackedCandidateRef> packedSorter;
 	std::sort( trackRef.begin(), trackRef.end(), packedSorter);
-	
+
   UInt_t iT=0;
 	for (size_t i = 0; i < trackRef.size(); i++) {
 		_track_purity[iT] = trackRef[i]->trackHighPurity();
@@ -189,7 +195,7 @@ TreeProducer_miniAOD::analyze(const edm::Event& iEvent, edm::EventSetup const& i
 		iT++ ;
     if(iT>=nT) break;
 	}
-		
+
   _nTrack = iT;
   _nTrack_stored = nT;
 
@@ -203,8 +209,8 @@ TreeProducer_miniAOD::analyze(const edm::Event& iEvent, edm::EventSetup const& i
   for (vector<pat::Jet>::const_iterator theJet = H_pfjets->begin(); theJet != H_pfjets->end(); ++theJet){
 		if (theJet->pt() > 20){
 			//Area
-			_jet_area[iJ] = theJet->jetArea();  
-				
+			_jet_area[iJ] = theJet->jetArea();
+
 			// Vertex
 			_jet_vx[iJ] = theJet->vx();
 			_jet_vy[iJ] = theJet->vy();
@@ -228,28 +234,28 @@ TreeProducer_miniAOD::analyze(const edm::Event& iEvent, edm::EventSetup const& i
 			_jet_mult_ch[iJ] = theJet->chargedMultiplicity();
 			_jet_mult_mu[iJ] = theJet->muonMultiplicity();
 			_jet_mult_ne[iJ] = theJet->neutralMultiplicity();
-      
+
       jecUnc->setJetEta(_jet_eta[iJ]);
       jecUnc->setJetPt(_jet_pt[iJ]); // here you must use the CORRECTED jet pt
       _jet_unc[iJ] = jecUnc->getUncertainty(true);
       _jet_ptCor_up[iJ] = (theJet->pt())*(1+_jet_unc[iJ]) ; // shift = +1(up), or -1(down)
       _jet_ptCor_down[iJ] = (theJet->pt())*(1-_jet_unc[iJ]) ;
-      
+
 			iJ++ ;
 		}
     if(iJ>=nJ) break;
   }
   _nJet = iJ;
   _nJet_stored = nJ;
-	
+
   UInt_t iGJ=0;
   //
 	if(!_isData){
 		for (vector<reco::GenJet>::const_iterator theGenJet = H_genjets->begin(); theGenJet != H_genjets->end(); ++theGenJet){
 			if (theGenJet->pt() > 20){
 				//Area
-				_genjet_area[iJ] = theGenJet->jetArea();  
-					
+				_genjet_area[iJ] = theGenJet->jetArea();
+
 				// Vertex
 				_genjet_vx[iGJ] = theGenJet->vx();
 				_genjet_vy[iGJ] = theGenJet->vy();
@@ -267,7 +273,7 @@ TreeProducer_miniAOD::analyze(const edm::Event& iEvent, edm::EventSetup const& i
 					const reco::Candidate * constituent = theGenJet->daughter(i);
 					if (constituent->charge() != 0) _genjet_efrac_ch[iGJ] += constituent->energy()/theGenJet->energy();
 				}
-				
+
 				iGJ++ ;
 			}
 			if(iGJ>=nGJ) break;
@@ -275,12 +281,13 @@ TreeProducer_miniAOD::analyze(const edm::Event& iEvent, edm::EventSetup const& i
 		_nGenJet = iGJ;
 		_nGenJet_stored = nGJ;
 	}
-  
+
   //MET//
   const pat::MET &met = H_MET->front();
   _MET = met.pt();
   _MET_phi = met.phi();
-	
+
+
 	// PHOTONS//
 	UInt_t iP=0;
 // 	for (vector<pat::Photon>::const_iterator thePhoton = H_photon->begin(); thePhoton != H_photon->end(); ++thePhoton){
@@ -295,11 +302,40 @@ TreeProducer_miniAOD::analyze(const edm::Event& iEvent, edm::EventSetup const& i
     _passLooseId[iP] = ( (int)isPassLoose );
     _passMediumId[iP] = ( (int)isPassMedium);
 		_passTightId[iP] = ( (int)isPassTight );
+    _photon_hasPixelSeed[iP] = (int)thePhoton->hasPixelSeed();
+    _photon_hasConvTracks[iP] = (int)thePhoton->hasConversionTracks();
+
+
+    // bool matched = false;
+    // double total_convs_pt = 0;
+    // for (reco::ConversionCollection::const_iterator conv = hConversions->begin(); conv!= hConversions->end(); ++conv) {
+    //   if(conv->EoverP()>2.5 or conv->EoverP()<0.5) continue;
+    //   math::XYZVectorF rpm = conv->pairMomentum();
+    //   double pt = 0;
+    //    std::vector<edm::RefToBase<reco::Track> > reftrack = conv->tracks();
+    //     for(unsigned int tr=0; tr<reftrack.size(); tr++){
+    //       pt+=reftrack[tr]->pt();
+    //     }
+    //   if(deltaR(thePhoton->eta(), thePhoton->phi(), rpm.eta(), rpm.phi()) < 0.2) {
+    //     matched = true;
+    //     total_convs_pt += pt;
+    //   }
+    // }
+    //
+    // if(matched) {
+    //   pc_matched[iP] = 1;
+    //   convtracks_pt[iP] = total_convs_pt;
+    // }
+    // else{
+    //   pc_matched[iP] = 0;
+    //   convtracks_pt[iP] = 0;
+    // }
+
 		iP++;
 		if (iP>=nP) break;
 	}
   _nPhoton_stored = nP;
-  
+
   //TRIGGER//
   if (triggerPathsMap[triggerPathsVector[0]] != -1 && H_trig->accept(triggerPathsMap[triggerPathsVector[0]])) _dijet_170_0p1 = 1;
   if (triggerPathsMap[triggerPathsVector[1]] != -1 && H_trig->accept(triggerPathsMap[triggerPathsVector[1]])) _dijet_220_0p3 = 1;
@@ -323,19 +359,19 @@ TreeProducer_miniAOD::analyze(const edm::Event& iEvent, edm::EventSetup const& i
   if (filterPathsMap[filterPathsVector[5]] != -1 && H_METfilter->accept(filterPathsMap[filterPathsVector[5]])) _beamhaloFlag = 1;
 
   _tree->Fill();
-  
+
   delete jecUnc;
 }
 
 
 // ------------ method called once each job just before starting event loop  ------------
-void 
+void
 TreeProducer_miniAOD::beginJob()
 {
   // Initialize when class is created
   edm::Service<TFileService> fs ;
   _tree = fs->make <TTree>("SimpAnalysis","tree");
-  
+
   // Declare tree's branches
   //_tree->Branch("",&,"");
   //
@@ -358,11 +394,11 @@ TreeProducer_miniAOD::beginJob()
 	// Tracks
 	_tree->Branch("nTrack_stored",&_nTrack_stored,"nTrack_stored/I");
 	_tree->Branch("nTrack",&_nTrack,"nTrack/I");
-	
+
 	_tree->Branch("track_pt",&_track_pt,"track_pt[nTrack_stored]/D");
 	_tree->Branch("track_eta",&_track_eta,"track_eta[nTrack_stored]/D");
 	_tree->Branch("track_phi",&_track_phi,"track_phi[nTrack_stored]/D");
-	
+
 	_tree->Branch("track_normalizedChi2",&_track_normalizedChi2,"track_normalizedChi2[nTrack_stored]/D");
 	_tree->Branch("track_ndof",&_track_ndof,"track_ndof[nTrack_stored]/I");
 	_tree->Branch("track_ptError",&_track_ptError,"track_ptError[nTrack_stored]/D");
@@ -421,7 +457,7 @@ TreeProducer_miniAOD::beginJob()
   _tree->Branch("genjet_m",&_genjet_m,"genjet_m[nGenJet_stored]/D");
   //
   _tree->Branch("genjet_efrac_ch", &_genjet_efrac_ch, "genjet_efrac_ch[nGenJet_stored]/D");
-	
+
 	//Photons
   _tree->Branch("nPhoton_stored",&_nPhoton_stored,"nPhoton_stored/I");
   _tree->Branch("photon_eta",&_photon_eta,"photon_eta[nPhoton_stored]/D");
@@ -430,11 +466,16 @@ TreeProducer_miniAOD::beginJob()
   _tree->Branch("photon_passLooseId",&_passLooseId, "photon_passLooseId[nPhoton_stored]/I");
   _tree->Branch("photon_passMediumId",&_passMediumId, "photon_passLooseId[nPhoton_stored]/I");
   _tree->Branch("photon_passTightId",&_passTightId, "photon_passLooseId[nPhoton_stored]/I");
+  _tree->Branch("photon_hasConvTracks",&_photon_hasConvTracks, "photon_hasConvTracks[nPhoton_stored]/I");
+  _tree->Branch("photon_hasPixelSeed",&_photon_hasPixelSeed, "photon_hasPixelSeed[nPhoton_stored]/I");
+
+  //_tree->Branch("pc_matched",&pc_matched,"pc_matched[nPhoton_stored]/I");
+  //_tree->Branch("convtracks_pt",&convtracks_pt,"convtracks_pt[nPhoton_stored]/D");
 
   //MET
   _tree->Branch("MET", &_MET, "MET/D");
   _tree->Branch("MET_phi", &_MET_phi, "MET_phi/D");
-  
+
   //Trigger
   _tree->Branch("HLT_DiCentralPFJet170_CFMax0p1", &_dijet_170_0p1);
   _tree->Branch("HLT_DiCentralPFJet220_CFMax0p3", &_dijet_220_0p3);
@@ -445,8 +486,8 @@ TreeProducer_miniAOD::beginJob()
   //prescales
   _tree->Branch("pswgt_dijet_170", &_pswgt_dijet_170, "pswgt_dijet_170/D");
   _tree->Branch("pswgt_singlejet_170_0p1", &_pswgt_singlejet_170_0p1, "pswgt_singlejet_170_0p1/D");
-  
-  
+
+
   //MET filters
   _tree->Branch("Flag_HBHENoiseFilter", &_HBHENoiseFlag);
   _tree->Branch("Flag_HBHENoiseIsoFilter", &_HBHENoiseIsoFlag);
@@ -457,24 +498,24 @@ TreeProducer_miniAOD::beginJob()
 }
 
 // ------------ method called once each job just after ending the event loop  ------------
-void 
-TreeProducer_miniAOD::endJob() 
+void
+TreeProducer_miniAOD::endJob()
 {
 }
 
 // ------------ method called when starting to processes a run  ------------
-void 
+void
 TreeProducer_miniAOD::beginRun(edm::Run const& iRun, edm::EventSetup const& iSetup)
 {
-	
-	
+
+
   triggerPathsVector.push_back("HLT_DiCentralPFJet170_CFMax0p1_v");
   triggerPathsVector.push_back("HLT_DiCentralPFJet220_CFMax0p3_v");
   triggerPathsVector.push_back("HLT_DiCentralPFJet330_CFMax0p5_v");
   triggerPathsVector.push_back("HLT_DiCentralPFJet430_v");
   triggerPathsVector.push_back("HLT_DiCentralPFJet170_v");
   triggerPathsVector.push_back("HLT_SingleCentralPFJet170_CFMax0p1_v");
-  
+
   HLTConfigProvider hltConfig;
   bool changedConfig = false;
   hltConfig.init(iRun, iSetup, _trigResultsTag.process(), changedConfig);
@@ -482,7 +523,7 @@ TreeProducer_miniAOD::beginRun(edm::Run const& iRun, edm::EventSetup const& iSet
   for (size_t i = 0; i < triggerPathsVector.size(); i++) {
     triggerPathsMap[triggerPathsVector[i]] = -1;
   }
-  
+
   for(size_t i = 0; i < triggerPathsVector.size(); i++){
     TPRegexp pattern(triggerPathsVector[i]);
     for(size_t j = 0; j < hltConfig.triggerNames().size(); j++){
@@ -491,19 +532,19 @@ TreeProducer_miniAOD::beginRun(edm::Run const& iRun, edm::EventSetup const& iSet
         triggerPathsMap[triggerPathsVector[i]] = j;
       }
     }
-  } 
-  
+  }
+
   filterPathsVector.push_back("Flag_HBHENoiseFilter");
   filterPathsVector.push_back("Flag_eeBadScFilter");
   filterPathsVector.push_back("Flag_HBHENoiseIsoFilter");
   filterPathsVector.push_back("Flag_EcalDeadCellTriggerPrimitiveFilter");
   filterPathsVector.push_back("Flag_goodVertices");
   filterPathsVector.push_back("Flag_globalTightHalo2016Filter");
-  
+
   HLTConfigProvider fltrConfig;
   bool changedConfig2 = false;
   fltrConfig.init(iRun, iSetup, _METfilterTag.process(), changedConfig2);
-  
+
   for (size_t i = 0; i < filterPathsVector.size(); i++) {
     filterPathsMap[filterPathsVector[i]] = -1;
   }
@@ -520,19 +561,19 @@ TreeProducer_miniAOD::beginRun(edm::Run const& iRun, edm::EventSetup const& iSet
 }
 
 // ------------ method called when ending the processing of a run  ------------
-void 
+void
 TreeProducer_miniAOD::endRun(edm::Run const&, edm::EventSetup const&)
 {
 }
 
 // ------------ method called when starting to processes a luminosity block  ------------
-void 
+void
 TreeProducer_miniAOD::beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&)
 {
 }
 
 // ------------ method called when ending the processing of a luminosity block  ------------
-void 
+void
 TreeProducer_miniAOD::endLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&)
 {
 }
@@ -553,13 +594,13 @@ TreeProducer_miniAOD::Init()
   _nEvent = _nRun = _nLumi = 0;
 
   //Trigger
-  _dijet_170_0p1 = 0;      
-  _dijet_220_0p3 = 0;      
-  _dijet_330_0p5 = 0;       
-  _dijet_430 = 0;          
-  _dijet_170 = 0;           
+  _dijet_170_0p1 = 0;
+  _dijet_220_0p3 = 0;
+  _dijet_330_0p5 = 0;
+  _dijet_430 = 0;
+  _dijet_170 = 0;
   _singlejet_170_0p1 = 0;
-  
+
   //prescales
   _pswgt_dijet_170 = 1;
   _pswgt_singlejet_170_0p1 = 1;
@@ -567,17 +608,17 @@ TreeProducer_miniAOD::Init()
   //MET filters
   _HBHENoiseFlag = 0;
   _HBHENoiseIsoFlag = 0;
-  _ECALFlag = 0; 
+  _ECALFlag = 0;
   _vertexFlag = 0;
   _eeFlag = 0;
   _beamhaloFlag = 0;
-  
+
   //MET
   _MET = 0;
   _MET_phi = 0;
-  
+
   // Vertices
-  _vtx_N = 0; 
+  _vtx_N = 0;
   _vtx_N_stored = 0;
   for(UInt_t iv=0;iv<nV;iv++) {
     _vtx_normalizedChi2[iv] = 0.;
@@ -588,7 +629,7 @@ TreeProducer_miniAOD::Init()
     _vtx_y[iv] = 0.;
     _vtx_z[iv] = 0.;
   }
-  
+
   //Tracks
   _nTrack = 0;
 	_nTrack_stored = 0;
@@ -607,7 +648,7 @@ TreeProducer_miniAOD::Init()
 		_track_d0[it] = 0;
 		_track_dxy[it] = 0;
 		_track_purity[it] = 0;
-	}  
+	}
 
   //Jets
   _nJet = 0;
@@ -627,8 +668,8 @@ TreeProducer_miniAOD::Init()
     _jet_mult_ne[i] = 0;
     _jet_efrac_ne_Had[i] = 0;
     _jet_efrac_ne_EM[i] = 0;
-    _jet_efrac_ch_Had[i] = 0; 
-    _jet_efrac_ch_EM[i] = 0; 
+    _jet_efrac_ch_Had[i] = 0;
+    _jet_efrac_ch_EM[i] = 0;
     _jet_efrac_ch_Mu[i] = 0;
     _jet_unc[i]  = 0;
     _jet_ptCor_up[i]  = 0;
@@ -650,7 +691,7 @@ TreeProducer_miniAOD::Init()
     _genjet_m[i]   = 0;
     _genjet_efrac_ch[i] = 0;
 	}
-		
+
 	//Photons
 	for(UInt_t i=0 ; i<nP ; i++) {
 		_photon_eta[i] = 0;
@@ -659,6 +700,11 @@ TreeProducer_miniAOD::Init()
 		_passLooseId[i] = 0;
 		_passMediumId[i] = 0;
 		_passTightId[i] = 0;
+    _photon_hasConvTracks[i] = 0;
+    _photon_hasPixelSeed[i] = 0;
+    //pc_matched[i] = 0;
+    //convtracks_pt[i] = 0;
+
 	}
 }
 

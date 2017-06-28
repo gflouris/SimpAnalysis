@@ -23,8 +23,9 @@
 TCanvas *canvas_h1f(TString name, TString x_label, map<string, TH1F*> hmap, int x_min, int x_max, bool SetLOGY){
 
 	TCanvas *canvas  = new TCanvas(name,name,1000,800);
-	TH1F *h_pt0 = hmap["QCD"];
-	//TH1F *h_genpt0 = hmap["QCD_GEN"];
+	TH1F *h_pt0 = hmap["Data"];
+	TH1F *h_genpt0 = hmap["QCD"];
+	TH1F *h_simp_m1 = hmap["SIMP_M1"];
 
 	double max1 = h_pt0->GetBinContent(h_pt0->GetMaximumBin());
 
@@ -37,11 +38,19 @@ TCanvas *canvas_h1f(TString name, TString x_label, map<string, TH1F*> hmap, int 
 		h_pt0->SetMaximum(15*max1);
 	}
 
-	// h_genpt0->SetLineColor(kBlue-10);
-	// h_genpt0->SetFillColor(kBlue-10);
-	// h_genpt0->GetXaxis()->SetRangeUser(x_min,x_max);
-  // h_genpt0->Draw("hist");
-	h_pt0->Draw("hist");
+	h_genpt0->SetLineColor(kBlue-10);
+	h_genpt0->SetFillColor(kBlue-10);
+	h_genpt0->GetXaxis()->SetRangeUser(x_min,x_max);
+  h_genpt0->Draw("hist");
+
+	h_simp_m1->SetLineColor(2);
+	h_simp_m1->Draw("hist same");
+
+
+	h_pt0->SetLineColor(1);
+	h_pt0->SetMarkerColor(1);
+	h_pt0->SetMarkerStyle(7);
+	h_pt0->Draw("same P");
 
 	// TLegend *leg;
 	// leg = new TLegend(0.63,0.63,0.90,0.90);
@@ -97,7 +106,7 @@ TCanvas *canvas_data_mc_2d(TH2F *h_2d, TString xlabel,TString ylabel, int minx, 
 
 
 
-int DrawPlots(){
+int DrawPlots_Data(){
 
 
 
@@ -108,44 +117,46 @@ int DrawPlots(){
   extraText  = "Preliminary";  // default extra text is "Preliminary"
   lumi_sqrtS = "13 TeV";       // used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
 
-	TFile *fqcd = TFile::Open("Analysis_Plots_QCD_13TeV.root");
+	TFile *fqcd = TFile::Open("Analysis_Plots_QCD_13TeV_test.root");
+	TFile *fdata = TFile::Open("Analysis_Plots_Run2016.root");
+	TFile *fsignal = TFile::Open("Analysis_Plots_SIMP_13TeV.root");
 
-	const int N_Plots = 10;
-	TString histos[N_Plots] = {"pt1","eta","phi","jetcef0", "dis_pt", "dis_phi", "dis_eta", "dis_chf", "dis_nhf", "dis_nvtx"};
+	const int N_Plots = 11;
+	TString histos[N_Plots] = {"pt0","eta","phi","jetcef0", "nch", "dis_pt", "dis_phi", "dis_eta", "dis_chf", "dis_nhf", "dis_nvtx"};
 
-	TString xlabel[N_Plots] = {"p_{T}(GeV)","Jet #eta","Jet #phi", "Chf", "p_{T}", "#phi", "#eta", "ChF", "NHF", "VTX" };
-	int x_min[N_Plots] = {100, -3, -4, 0, 0, -4, -4, 0, 0, 0 };
-	int x_max[N_Plots] = {3000, 3, 4, 2, 3000, 4, 4, 1, 1, 60};
+	TString xlabel[N_Plots] = {"p_{T}(GeV)","Jet #eta","Jet #phi", "Chf", "Ch. Multiplicity","p_{T}", "#phi", "#eta", "ChF", "NHF", "VTX" };
+	int x_min[N_Plots] = {100, -3, -4, 0, 0,  0, -4, -4, 0, 0, 0 };
+	int x_max[N_Plots] = {3000, 3, 4, 2, 100, 3000, 4, 4, 1, 1, 60};
 
-	bool SETLOGY[N_Plots] = {true, false, false, false, false, false, false, false, false, false};
+	bool SETLOGY[N_Plots] = {true, false, false, false, false, false, false, false, false, false, false};
 
 
-	for(int h=0; h<4; h++){
+	for(int h=0; h<5; h++){
+		cout<<histos[h]<<endl;
 		TH1F *h_pt0 = (TH1F*)fqcd->Get("h_"+histos[h]+"_QCD_HT300To500");
 		h_pt0->Add((TH1F*)fqcd->Get("h_"+histos[h]+"_QCD_HT500To700"));
-		//TH1F *h_pt0 = (TH1F*)fqcd->Get("h_"+histos[h]+"_QCD_HT500To700");
 		h_pt0->Add((TH1F*)fqcd->Get("h_"+histos[h]+"_QCD_HT700To1000"));
 		h_pt0->Add((TH1F*)fqcd->Get("h_"+histos[h]+"_QCD_HT1000To1500"));
 		h_pt0->Add((TH1F*)fqcd->Get("h_"+histos[h]+"_QCD_HT1500To2000"));
 		h_pt0->Add((TH1F*)fqcd->Get("h_"+histos[h]+"_QCD_HT2000ToInf"));
 
-		cout<<histos[h]<<endl;
-		cout<<h_pt0->Integral(12,2000)<<"\t"<<h_pt0->Integral(20,2000)<<endl;
+		cout<<"qcd\n";
 
-	  // TH1F *h_genpt0 = (TH1F*)fqcd->Get("h_gen"+histos[h]+"_QCD_HT300To500");
-		// h_genpt0->Add((TH1F*)fqcd->Get("h_gen"+histos[h]+"_QCD_HT500To700"));
-		// //TH1F *h_genpt0 = (TH1F*)fqcd->Get("h_gen"+histos[h]+"_QCD_HT500To700");
-		// h_genpt0->Add((TH1F*)fqcd->Get("h_gen"+histos[h]+"_QCD_HT700To1000"));
-		// h_genpt0->Add((TH1F*)fqcd->Get("h_gen"+histos[h]+"_QCD_HT1000To1500"));
-		// h_genpt0->Add((TH1F*)fqcd->Get("h_gen"+histos[h]+"_QCD_HT1500To2000"));
-		// h_genpt0->Add((TH1F*)fqcd->Get("h_gen"+histos[h]+"_QCD_HT2000ToInf"));
+	  TH1F *h_data = (TH1F*)fdata->Get("h_"+histos[h]+"_Run2016G");
+		cout<<"data\n";
+
+		TH1F *h_signal = (TH1F*)fsignal->Get("h_"+histos[h]+"_SIMP_M1");
+
 
 		map<string, TH1F*> mh_pt0;
 		mh_pt0["QCD"] = h_pt0;
-		//mh_pt0["QCD_GEN"] = h_genpt0;
+		mh_pt0["Data"] = h_data;
+		mh_pt0["SIMP_M1"] = h_signal;
 
 
-	 	//mh_pt0["QCD"]->Scale(1./mh_pt0["QCD"]->Integral());
+
+		mh_pt0["QCD"]->Scale(7./36);
+		mh_pt0["SIMP_M1"]->Scale(7./36);
 
 
 

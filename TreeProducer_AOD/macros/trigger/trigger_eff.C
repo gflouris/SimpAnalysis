@@ -61,6 +61,9 @@ string QCD_Samples[NSAMPLES] = {
   TH1F* h_pt_03_den         = new TH1F("h_pt_03_den","h_pt_03_den",100,0,2000);
   TH1F* h_pt_01_den         = new TH1F("h_pt_01_den","h_pt_01_den",100,0,2000);
 
+  TH1F* h_pt1      = new TH1F("h_pt1","h_pt1",100,0,2000);
+  TH1F* h_pt2      = new TH1F("h_pt2","h_pt2",100,0,2000);
+
 
   int event_selection = 0;
   int event_selection01 = 0;
@@ -99,28 +102,47 @@ for(int S=0; S<NSAMPLES; S++){
     if(i%100000 == 0) cout<<i<<" / "<<nentries<<"\r"<<flush;
       ///Object Selection
 
-      double deltajet_phi = c_tree.jet_phi[0] - c_tree.jet_phi[1];
-      if(deltajet_phi > TMath::Pi()) deltajet_phi -= 2*TMath::Pi();
-      if(deltajet_phi < -TMath::Pi()) deltajet_phi += 2*TMath::Pi();
+            if(c_tree.vtx_N<=1) continue;
+
+         	        double njets = 0;
+            for (int k = 0; k < 8; ++k){
+        		   if (c_tree.jet_pt[k] > 30) njets++;
+        		}
+        		if(njets!=2) continue;
+
+            if(c_tree.jet_pt[0]<pt_cut or c_tree.jet_pt[1]<pt_cut) continue;
+            if(fabs(c_tree.jet_eta[0])>2. or fabs(c_tree.jet_eta[1])>2.) continue;
 
 
-      double deltaphi_jet1photon = c_tree.jet_phi[0] - c_tree.photon_phi[0];
-      if(deltaphi_jet1photon > TMath::Pi()) deltaphi_jet1photon -= 2*TMath::Pi();
-      if(deltaphi_jet1photon < -TMath::Pi()) deltaphi_jet1photon += 2*TMath::Pi();
-      double deltaphi_jet2photon = c_tree.jet_phi[1] - c_tree.photon_phi[0];
-      if(deltaphi_jet2photon > TMath::Pi()) deltaphi_jet2photon -= 2*TMath::Pi();
-      if(deltaphi_jet2photon < -TMath::Pi()) deltaphi_jet2photon += 2*TMath::Pi();
+            double deltajet_phi = deltaPhi(c_tree.jet_phi[0], c_tree.jet_phi[1]);
+            if(fabs(deltajet_phi) > 2.0);
+            else continue;
 
-      double deltaeta_jet1photon = c_tree.jet_eta[0] - c_tree.photon_eta[0];
-      double deltaeta_jet2photon = c_tree.jet_eta[1] - c_tree.photon_eta[0];
+            double lphoton_pt = 0, lphoton_eta = -100, lphoton_phi = -100;
+            int lphoton_id = 0;
+            for(int p=0; p<4; p++){
+              if(c_tree.photon_pt[p]>lphoton_pt) {
+                lphoton_pt = c_tree.photon_pt[p];
+                lphoton_eta = c_tree.photon_eta[p];
+                lphoton_phi = c_tree.photon_phi[p];
+                lphoton_id = p;
+              }
+            }
 
-      double dR1 = TMath::Sqrt(deltaphi_jet1photon*deltaphi_jet1photon + deltaeta_jet1photon*deltaeta_jet1photon);
-      double dR2 = TMath::Sqrt(deltaphi_jet2photon*deltaphi_jet2photon + deltaeta_jet2photon*deltaeta_jet2photon);
-
-      if(c_tree.photon_passLooseId[0] == 1 || (c_tree.photon_passLooseId[0] == 0 && dR1 <= 0.1 && dR2 <= 0.1)) continue;
+            double dR1 = deltaR(lphoton_eta, lphoton_phi, c_tree.jet_eta[0], c_tree.jet_phi[0]);
+            double dR2 = deltaR(lphoton_eta, lphoton_phi, c_tree.jet_eta[1], c_tree.jet_phi[1]);
 
 
-    	if( fabs(c_tree.jet_eta[0])<eta_cut && fabs(c_tree.jet_eta[1])<eta_cut && deltajet_phi>dphi_cut ){
+            bool pass_conv_1 = true;
+            bool pass_conv_2 = true;
+            if(c_tree.jet_efrac_photon[0]>0.8 and c_tree.convtracks_pt[lphoton_id]/c_tree.photon_pt[lphoton_id] > 0.3 and dR1<0.2) pass_conv_1 = false;
+            if(c_tree.jet_efrac_photon[1]>0.8 and c_tree.convtracks_pt[lphoton_id]/c_tree.photon_pt[lphoton_id] > 0.3 and dR2<0.2) pass_conv_2 = false;
+
+            if( (c_tree.photon_passLooseId[lphoton_id] == 0 or (c_tree.photon_passLooseId[lphoton_id] == 1 && dR1 > 0.1 && dR2 > 0.1) )  and (pass_conv_1 and pass_conv_2) );
+            else continue;
+
+
+
             event_selection++;
 
             double djet_chf    = c_tree.jet_efrac_ch_Had[0] + c_tree.jet_efrac_ch_EM[0] + c_tree.jet_efrac_ch_Mu[0];
@@ -152,9 +174,8 @@ for(int S=0; S<NSAMPLES; S++){
               h_chf_05->Fill(djet_chf, c_tree.fChain->GetWeight());
             }
 
-    	}
 
-      if( fabs(c_tree.jet_eta[0])<eta_cut && fabs(c_tree.jet_eta[1])<eta_cut && deltajet_phi>dphi_cut ){
+
         //cout<<c_tree.fChain->GetWeight()<<endl;
 
         double djet_chf0    = c_tree.jet_efrac_ch_Had[0] + c_tree.jet_efrac_ch_EM[0] + c_tree.jet_efrac_ch_Mu[0];
@@ -170,7 +191,9 @@ for(int S=0; S<NSAMPLES; S++){
 
         //if(c_tree.HLT_DiCentralPFJet170_CFMax0p1 and djet_chf0<chf_cut and djet_chf1<chf_cut) h_pt_05->Fill(c_tree.jet_pt[1], c_tree.fChain->GetWeight());
 
-       }
+        h_pt1->Fill(c_tree.jet_pt[0], c_tree.fChain->GetWeight());
+        h_pt2->Fill(c_tree.jet_pt[1], c_tree.fChain->GetWeight());
+
 
    }
 
@@ -248,7 +271,7 @@ for(int S=0; S<NSAMPLES; S++){
     // h_chf_01_den->Draw();
 
 
-    TFile *fout = new TFile("Efficiency_QCD2.root", "RECREATE");
+    TFile *fout = new TFile("Efficiency_QCD_test.root", "RECREATE");
     fout->cd();
     h_chf_05_den->Write();
     h_chf_05->Write();
@@ -263,6 +286,9 @@ for(int S=0; S<NSAMPLES; S++){
     h_pt_03->Write();
     h_pt_01_den->Write();
     h_pt_01->Write();
+
+    h_pt1->Write();
+    h_pt2->Write();
 
 
 

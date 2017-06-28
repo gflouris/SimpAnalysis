@@ -24,97 +24,112 @@
 #include "TMath.h"
 
 #include <vector>
-
+#include "TEfficiency.h"
+#include "TCanvas.h"
+#include "TGraphAsymmErrors.h"
 
 #include "../classes/SANtuple.h"
 
 
+TCanvas* effic(TString HLTName,TH1F* data_num_in, TH1F* data_den_in, TH1F* mc_num_in, TH1F* mc_den_in){
+
+  TH1F data_num = *data_num_in;
+  TH1F data_den = *data_den_in;
+  TH1F mc_num = *mc_num_in;
+  TH1F mc_den = *mc_den_in;
+
+  TString XLabel = "Jet p_{T2}";
+  TString name = data_num.GetName();
+  cout<<name<<endl;
+  int rebin = 2;
+  if(name.Contains("chf")) {
+    rebin = 5;
+    XLabel = "Max ChF";
+  }
+  data_num.Rebin(rebin);
+  data_den.Rebin(rebin);
+  mc_num.Rebin(rebin);
+  mc_den.Rebin(rebin);
+
+  TCanvas *c1 = new TCanvas(name,name,800,600);
+  c1->cd();
+
+
+
+  TEfficiency *pt_eff = new TEfficiency("pt_eff_"+XLabel,"pt_eff_"+XLabel,80,400,800);
+  pt_eff->SetPassedHistogram(data_num,"f");
+  pt_eff->SetTotalHistogram(data_den,"f");
+
+  TEfficiency *pt_eff_qcd = new TEfficiency("pt_eff_"+XLabel,"pt_eff_"+XLabel,80,400,800);
+  pt_eff_qcd->SetPassedHistogram(mc_num, "f");
+  pt_eff_qcd->SetTotalHistogram(mc_den, "f");
+
+
+  pt_eff->SetTitle(HLTName+"; "+XLabel+"; Efficiency");
+  auto graph = pt_eff->CreateGraph();
+  graph->GetXaxis()->SetRangeUser(0,1000);
+  graph->GetYaxis()->SetRangeUser(0,1.4);
+  graph->Draw("AP");
+
+  auto graphqcd = pt_eff_qcd->CreateGraph();
+  graphqcd->SetLineColor(kRed);
+  graphqcd->SetMarkerColor(kRed);
+  graphqcd->Draw("Psame");
+
+  // TLegend *leg = new TLegend(0.4,0.61,0.88,0.88);
+  // mc_num_in->SetLineColor(kRed);
+  // // leg->AddEntry(data_num_in, "HLT_Singlejet170_CF / HLT_Dijet430  p_{T,2}>500", "");
+  // // leg->AddEntry(data_num_in, " Data", "l");
+  // // leg->AddEntry(mc_num_in, " MC", "l");
+  // leg->AddEntry(data_num_in, "MC - HLT_Singlejet170_CF / HLT_Dijet170  p_{T,2}>250", "l");
+  // leg->AddEntry(mc_num_in, "MC - HLT_Singlejet170_CF / HLT_Dijet430  p_{T,2}>500", "l");
+  // leg->SetTextFont(42);
+  // leg->SetFillColor(kWhite);
+  // leg->SetLineColor(kWhite);
+  // leg->SetBorderSize(0);
+  // leg->Draw();
+
+  return c1;
+}
 
 
 int trigger_plots(){
 
-   //TString Label="XXTo4J_ctau100_M700";
-   TString Label="QCD";
-   TFile *fin = TFile::Open("Efficiency_"+Label+".root");
-   fin->cd();
+   TString Label=  "Data_test";
+   TFile *fin = TFile::Open("./ROOTFiles/Efficiency_"+Label+".root");
+   //fin->cd();
 
+   TString LabelQCD=  "MC_SIMP";
+   TFile *fqcd = TFile::Open("./ROOTFiles/Efficiency_"+LabelQCD+".root");
+   //fqcd->cd();
 
-    TEfficiency *pt_eff = new TEfficiency("pt_eff_05","pt_eff_05",80,400,800);
-    pt_eff->SetPassedHistogram(*(TH1F*)fin->Get("h_pt_05"),"f");
-    pt_eff->SetTotalHistogram(*(TH1F*)fin->Get("h_pt_05_den"),"f");
-    TCanvas *c1 = new TCanvas("c1","c1",800,600);
-    c1->cd();
-    pt_eff->SetTitle("HLT_DiCentralPFJet330_CFMax0p5; Jet p_{T2}; Efficiency");
-    pt_eff->Draw();
+     TCanvas* c_pt330 = effic("HLT_DiCentralPFJet330_CFMax0p5", (TH1F*)fin->Get("h_pt_num_330"), (TH1F*)fin->Get("h_pt_den_330"), (TH1F*)fqcd->Get("h_pt_num_330"), (TH1F*)fqcd->Get("h_pt_den_330"));
+     c_pt330->SaveAs("./Plots/pt_eff_05_"+Label+LabelQCD+".png");
+     c_pt330->SaveAs("./Plots/pt_eff_05_"+Label+LabelQCD+".pdf");
 
+     TCanvas* c_pt110 = effic("HLT_DiCentralPFJet170_CFMax0p1", (TH1F*)fin->Get("h_pt_num_170_chf1"), (TH1F*)fin->Get("h_pt_num_170_chf1"), (TH1F*)fqcd->Get("h_pt_num_170_chf1"), (TH1F*)fqcd->Get("h_pt_num_170_chf1"));
+     c_pt110->SaveAs("./Plots/pt_eff_01_"+Label+LabelQCD+".png");
+     c_pt110->SaveAs("./Plots/pt_eff_01_"+Label+LabelQCD+".pdf");
 
+     TCanvas* c_chf01 = effic("HLT_DiCentralPFJet170_CFMax0p1", (TH1F*)fin->Get("h_chf170_num"), (TH1F*)fin->Get("h_chf170_den"), (TH1F*)fqcd->Get("h_chf170_num"), (TH1F*)fqcd->Get("h_chf170_den"));
+     c_chf01->SaveAs("./Plots/chf_eff_01_"+Label+LabelQCD+".png");
+     c_chf01->SaveAs("./Plots/chf_eff_01_"+Label+LabelQCD+".pdf");
 
-    TEfficiency *pt_eff03 = new TEfficiency("pt_eff_03","pt_eff_03",80,400,800);
-    pt_eff03->SetPassedHistogram(*(TH1F*)fin->Get("h_pt_03"),"f");
-    pt_eff03->SetTotalHistogram(*(TH1F*)fin->Get("h_pt_03_den"),"f");
-    TCanvas *c2 = new TCanvas("c2","c2",800,600);
-    c2->cd();
-    pt_eff03->SetTitle("HLT_DiCentralPFJet220_CFMax0p3; Jet p_{T2}; Efficiency");
-    pt_eff03->Draw();
+     TCanvas* c_chf05 = effic("HLT_DiCentralPFJet330_CFMax0p5", (TH1F*)fin->Get("h_chf330_num"), (TH1F*)fin->Get("h_chf330_den"), (TH1F*)fqcd->Get("h_chf330_num"), (TH1F*)fqcd->Get("h_chf330_den"));
+     c_chf05->SaveAs("./Plots/chf_eff_05_"+Label+LabelQCD+".png");
+     c_chf05->SaveAs("./Plots/chf_eff_05_"+Label+LabelQCD+".pdf");
 
-    TEfficiency *pt_eff_01 = new TEfficiency("pt_eff_01","pt_eff_01",80,400,800);
-    pt_eff_01->SetPassedHistogram(*(TH1F*)fin->Get("h_pt_01"),"f");
-    pt_eff_01->SetTotalHistogram(*(TH1F*)fin->Get("h_pt_01_den"),"f");
-    TCanvas *c3 = new TCanvas("c3","c3",800,600);
-    c3->cd();
-    pt_eff_01->SetTitle("HLT_DiCentralPFJet170_CFMax0p1; Jet p_{T2}; Efficiency");
-    pt_eff_01->Draw();
+     TCanvas* c_chf01_Dijet430 = effic("HLT_DiCentralPFJet170_CFMax0p1", (TH1F*)fin->Get("h_chf170_Dijet430_num"), (TH1F*)fin->Get("h_chf170_Dijet430_den"), (TH1F*)fqcd->Get("h_chf170_Dijet430_num"), (TH1F*)fqcd->Get("h_chf170_Dijet430_den"));
+     c_chf01_Dijet430->SaveAs("./Plots/chf_eff_01_Dijet430_"+Label+LabelQCD+".png");
+     c_chf01_Dijet430->SaveAs("./Plots/chf_eff_01_Dijet430_"+Label+LabelQCD+".pdf");
 
+   TCanvas* c_chf_single_mc= effic("HLT_SingleCentralPFJet170_CFMax0p1", (TH1F*)fqcd->Get("h_chf0_HLT_Singlejet170_CF"), (TH1F*)fqcd->Get("h_chf0_HLT_Dijet170"), (TH1F*)fqcd->Get("h_chf0_HLT_Singlejet170_CF_pt500"), (TH1F*)fqcd->Get("h_chf0_HLT_Dijet430_pt500"));
+   c_chf_single_mc->SaveAs("./Plots/pt_singlejet_"+LabelQCD+".pdf");
+   c_chf_single_mc->SaveAs("./Plots/pt_singlejet_"+LabelQCD+".png");
 
-
-
-
-    TEfficiency *chf_eff_01 = new TEfficiency("chf_eff_01","chf_eff_01;Max ChF;#epsilon;",20,0,1);
-    chf_eff_01->SetPassedHistogram(*(TH1F*)fin->Get("h_chf_01"),"f");
-    chf_eff_01->SetTotalHistogram(*(TH1F*)fin->Get("h_chf_01_den"),"f");
-    TCanvas *c4 = new TCanvas("c4","c4",800,600);
-    c4->cd();
-    chf_eff_01->SetTitle("HLT_DiCentralPFJet170_CFMax0p1; Max ChF; Efficiency");
-    chf_eff_01->Draw();
-
-
-    TEfficiency *chf_eff_03 = new TEfficiency("chf_eff_03","chf_eff_03;Max ChF;#epsilon;",20,0,1);
-    chf_eff_03->SetPassedHistogram(*(TH1F*)fin->Get("h_chf_03"),"f");
-    chf_eff_03->SetTotalHistogram(*(TH1F*)fin->Get("h_chf_03_den"),"f");
-    TCanvas *c5 = new TCanvas("c5","c5",800,600);
-    c5->cd();
-    chf_eff_03->SetTitle("HLT_DiCentralPFJet220_CFMax0p3; Max ChF; Efficiency");
-    chf_eff_03->Draw();
-
-    TEfficiency *chf_eff_05 = new TEfficiency("chf_eff_05","chf_eff_05;Max ChF;#epsilon;",20,0,1);
-    chf_eff_05->SetPassedHistogram(*(TH1F*)fin->Get("h_chf_05"),"f");
-    chf_eff_05->SetTotalHistogram(*(TH1F*)fin->Get("h_chf_05_den"),"f");
-    TCanvas *c6 = new TCanvas("c6","c6",800,600);
-    c6->cd();
-    chf_eff_05->SetTitle("HLT_DiCentralPFJet330_CFMax0p5; Max ChF; Efficiency");
-    chf_eff_05->Draw();
-
-
-    c1->SaveAs("pt_eff_05_"+Label+".png");
-    c1->SaveAs("pt_eff_05_"+Label+".pdf");
-    c2->SaveAs("pt_eff_03_"+Label+".png");
-    c2->SaveAs("pt_eff_03_"+Label+".pdf");
-    c3->SaveAs("pt_eff_01_"+Label+".png");
-    c3->SaveAs("pt_eff_01_"+Label+".pdf");
-
-    c4->SaveAs("chf_eff_01_"+Label+".png");
-    c4->SaveAs("chf_eff_01_"+Label+".pdf");
-    c5->SaveAs("chf_eff_03_"+Label+".png");
-    c5->SaveAs("chf_eff_03_"+Label+".pdf");
-    c6->SaveAs("chf_eff_05_"+Label+".png");
-    c6->SaveAs("chf_eff_05_"+Label+".pdf");
-
-
-    // TCanvas *c7 = new TCanvas("c7","c7",800,600);
-    // c7->cd();
-    // h_chf_01_den->Draw();
-    //
-
+  //  TCanvas* c_chf_single= effic("HLT_SingleCentralPFJet170_CFMax0p1", (TH1F*)fin->Get("h_chf0_HLT_Singlejet170_CF_pt500"), (TH1F*)fin->Get("h_chf0_HLT_Dijet430_pt500"), (TH1F*)fqcd->Get("h_chf0_HLT_Singlejet170_CF_pt500"), (TH1F*)fqcd->Get("h_chf0_HLT_Dijet430_pt500"));
+  // c_chf_single->SaveAs("./Plots/pt_singlejet_"+Label+LabelQCD+"33.png");
+  // c_chf_single->SaveAs("./Plots/pt_singlejet_"+Label+LabelQCD+"33.pdf");
 
     return 0;
 }

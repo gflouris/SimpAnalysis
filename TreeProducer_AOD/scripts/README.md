@@ -13,6 +13,10 @@ gunzip ./*.gz
 
 sed -i 's/9000006/2112/g' ./SIMP_13TeV_M-100_*
 
+for j in {1..12}; do python splitLHE.py -i SIMP_13TeV_M-100_${j}.lhe -n 5000; done
+
+rm ./SIMP_13TeV_M-100_{1..12}.lhe
+
 ./runmany.sh
 ```
 
